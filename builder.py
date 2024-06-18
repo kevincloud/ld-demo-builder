@@ -24,8 +24,9 @@ cmd = sys.argv[1].lower()
 
 match cmd:
     case "build":
-        project_key = randomname.get_name()
-        project_name = "Coast Demo (" + project_key + ")"
+        pname = randomname.get_name()
+        project_key = "cxld-" + pname
+        project_name = "Coast Demo (" + pname + ")"
         demo = DemoBuilder.DemoBuilder(LD_API_KEY, project_key, project_name)
         # will eventually be: build_all()
         demo.create_project()
@@ -44,8 +45,12 @@ match cmd:
         if len(sys.argv) < 3:
             print("Usage: python builder.py cleanup <project_key>")
             sys.exit()
-        project_key = sys.argv[2]
-        project_name = "Coast Demo (" + project_key + ")"
+        pname = sys.argv[2].lower()
+        if not pname.startswith("cxld-"):
+            print("Error: This does not appear to be a Coast demo project.")
+            sys.exit()
+        project_key = pname
+        project_name = "Coast Demo (" + pname.replace("cxld-", "") + ")"
         demo = DemoBuilder.DemoBuilder(LD_API_KEY, project_key, project_name)
         print(
             "Are you sure you want to delete this project? It will be gone forever and cannot be undone."

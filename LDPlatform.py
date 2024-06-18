@@ -1,5 +1,6 @@
 import requests
 import json
+import time
 
 
 class LDPlatform:
@@ -10,27 +11,60 @@ class LDPlatform:
     def __init__(self, api_key):
         self.api_key = api_key
 
+    def getrequest(self, method, url, json=None, headers=None):
+        call_limit = 5
+        delay = 5
+        tries = 5
+
+        response = requests.request(method, url, json=json, headers=headers)
+        limit_remaining = response.headers["X-Ratelimit-Route-Remaining"]
+
+        if int(limit_remaining) <= call_limit:
+            resetTime = int(response.headers["X-Ratelimit-Reset"])
+            currentMilliTime = round(time.time() * 1000)
+            if resetTime - currentMilliTime > 0:
+                delay = round((resetTime - currentMilliTime) // 1000)
+            else:
+                delay = 0
+
+            if delay < 1:
+                delay = 0.5
+
+            tries -= 1
+            time.sleep(delay)
+            if tries == 0:
+                return "Rate limit exceeded. Please try again later."
+        else:
+            tries = 5
+
+        return response
+
     def create_project(self, project_key, project_name):
         self.project_key = project_key
         if self.project_exists(project_key):
             return
         payload = {"key": project_key, "name": project_name}
 
-        res = requests.post(
+        response = self.getrequest(
+            "POST",
             "https://app.launchdarkly.com/api/v2/projects",
             json=payload,
             headers={"Authorization": self.api_key, "Content-Type": "application/json"},
         )
 
         # client_id = "666b5cd5e16c371081d3ff33"
-        items = json.loads(res.text)
-        for e in items["environments"]:
+        data = json.loads(response.text)
+        for e in data["environments"]:
             if e["key"] == "test":
                 self.client_id = e["_id"]
                 break
+        if "message" in data:
+            print("Error creating flag: " + data["message"])
+        return response
 
     def delete_project(self):
-        res = requests.delete(
+        res = self.getrequest(
+            "DELETE",
             "https://app.launchdarkly.com/api/v2/projects/" + self.project_key,
             headers={"Authorization": self.api_key},
         )
@@ -82,11 +116,15 @@ class LDPlatform:
             "Content-Type": "application/json",
             "Authorization": self.api_key,
         }
-        response = requests.post(
+        response = self.getrequest(
+            "POST",
             "https://app.launchdarkly.com/api/v2/flags/" + self.project_key,
             json=payload,
             headers=headers,
         )
+        data = json.loads(response.text)
+        if "message" in data:
+            print("Error creating flag: " + data["message"])
         return response
 
     def add_release(self, flag_key):
@@ -103,9 +141,10 @@ class LDPlatform:
         success_criteria="LowerThanBaseline",
         unit="",
         exclude_empty_events=False,
-        randomization_units="user",
-        aggregation_type="average",
     ):
+        if self.metric_exists(metric_key):
+            return
+
         payload = {
             "key": metric_key,
             "name": metric_name,
@@ -115,8 +154,6 @@ class LDPlatform:
             "isNumeric": numeric,
             "successCriteria": success_criteria,
             "eventDefault": {"disabled": exclude_empty_events},
-            # "randomizationUnits": randomization_units,
-            # "unitAggregationType": aggregation_type,
         }
 
         if numeric:
@@ -126,16 +163,23 @@ class LDPlatform:
             "Content-Type": "application/json",
             "Authorization": self.api_key,
         }
-        response = requests.post(
+        response = self.getrequest(
+            "POST",
             "https://app.launchdarkly.com/api/v2/metrics/" + self.project_key,
             json=payload,
             headers=headers,
         )
+        data = json.loads(response.text)
+        if "message" in data:
+            print("Error creating flag: " + data["message"])
         return response
 
     def create_metric_group(
         self, group_key, group_name, metrics, kind="funnel", description=""
     ):
+        if self.metric_group_exists(group_key):
+            return
+
         payload = {
             "key": group_key,
             "name": group_name,
@@ -151,17 +195,22 @@ class LDPlatform:
             "Authorization": self.api_key,
             "LD-API-Version": "beta",
         }
-        response = requests.post(
+        response = self.getrequest(
+            "POST",
             "https://app.launchdarkly.com/api/v2/projects/"
             + self.project_key
             + "/metric-groups",
             json=payload,
             headers=headers,
         )
+        data = json.loads(response.text)
+        if "message" in data:
+            print("Error creating flag: " + data["message"])
         return response
 
     def project_exists(self, project_key):
-        res = requests.get(
+        res = self.getrequest(
+            "GET",
             "https://app.launchdarkly.com/api/v2/projects/" + project_key,
             headers={"Authorization": self.api_key},
         )
@@ -171,7 +220,8 @@ class LDPlatform:
         return True
 
     def flag_exists(self, flag_key):
-        res = requests.get(
+        res = self.getrequest(
+            "GET",
             "https://app.launchdarkly.com/api/v2/flags/"
             + self.project_key
             + "/"
@@ -184,7 +234,29 @@ class LDPlatform:
         return True
 
     def metric_exists(self, metric_key):
+        res = self.getrequest(
+            "GET",
+            "https://app.launchdarkly.com/api/v2/metrics/"
+            + self.project_key
+            + "/"
+            + metric_key,
+            headers={"Authorization": self.api_key},
+        )
+        data = json.loads(res.text)
+        if "message" in data:
+            return False
         return True
 
     def metric_group_exists(self, group_key):
+        res = self.getrequest(
+            "GET",
+            "https://app.launchdarkly.com/api/v2/projects/"
+            + self.project_key
+            + "/metric-groups/"
+            + group_key,
+            headers={"Authorization": self.api_key, "LD-API-Version": "beta"},
+        )
+        data = json.loads(res.text)
+        if "message" in data:
+            return False
         return True

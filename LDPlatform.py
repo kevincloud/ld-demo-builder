@@ -12,6 +12,7 @@ class LDPlatform:
         self.api_key = api_key
 
     def getrequest(self, method, url, json=None, headers=None):
+        # Completely stolen from Tom Totenberg
         call_limit = 5
         delay = 5
         tries = 5

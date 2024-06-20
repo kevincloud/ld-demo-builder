@@ -24,15 +24,29 @@ cmd = sys.argv[1].lower()
 
 match cmd:
     case "build":
-        pname = randomname.get_name()
-        project_key = "cxld-" + pname
-        project_name = "Coast Demo (" + pname + ")"
+        project_key = ""
+        project_name = ""
+        create_project = False
+        if len(sys.argv) == 2:
+            create_project = True
+            pname = randomname.get_name()
+            project_key = "cxld-" + pname
+            project_name = "Coast Demo (" + pname + ")"
+        else:
+            project_key = sys.argv[2].lower()
+            project_name = "Coast Demo (" + project_key.replace("cxld-", "") + ")"
+
         demo = DemoBuilder.DemoBuilder(LD_API_KEY, project_key, project_name)
         # will eventually be: build_all()
-        demo.create_project()
+        if create_project:
+            demo.create_project()
+        else:
+            demo.project_created = True
+
         demo.create_flags()
         demo.create_metrics()
         demo.create_metric_groups()
+        demo.create_experiments()
         print(
             "Project created: "
             + project_name

@@ -6,6 +6,7 @@ class DemoBuilder:
     flags_created = False
     metrics_created = False
     metric_groups_created = False
+    experiment_created = False
     client_id = ""
 
     # Initialize DemoBuilder
@@ -22,6 +23,7 @@ class DemoBuilder:
         self.create_flags()
         self.create_metrics()
         self.create_metric_groups()
+        self.create_experiments()
 
     # Create the project
     def create_project(self):
@@ -109,6 +111,16 @@ class DemoBuilder:
         self.metgroup_ai_csat()
         print("Done")
         self.metric_groups_created = True
+
+    def create_experiments(self):
+        if not self.metric_groups_created:
+            print("Error: Metric groups not created")
+            return
+        print("Creating experiment:")
+        print("  - AI Analysis to Advisor")
+        self.exp_ai_analysis_to_advisor()
+        print("Done")
+        self.experiment_created = True
 
     ##################################################
     # Flag Definitions
@@ -358,7 +370,7 @@ class DemoBuilder:
 
     ##################################################
     # Metric Definitions
-    # ----------------
+    # ------------------
     # Each metric is defined in its own function below
     ##################################################
 
@@ -431,8 +443,8 @@ class DemoBuilder:
 
     ##################################################
     # Metric Group Definitions
-    # ----------------
-    # Each metric gtoup is defined in its own
+    # ------------------------
+    # Each metric group is defined in its own
     # function below
     ##################################################
 
@@ -472,6 +484,24 @@ class DemoBuilder:
                 {"key": "ai-csat-positive"},
                 {"key": "ai-csat-negative"},
             ],
+        )
+
+    ##################################################
+    # Experimentation Definitions
+    # ---------------------------
+    # Each experiment is defined in its own
+    # function below
+    ##################################################
+
+    def exp_ai_analysis_to_advisor(self):
+        # AI Analysis to Advisor
+        res = self.ldproject.create_experiment(
+            "ai-analysis-to-advisor",
+            "AI Analysis to Advisor",
+            "config-ai-model",
+            "We believe that by using more up to date AI models, we will increase customer conversions to contact their advisor.",
+            primary_funnel_key="ai-to-advisor-conversion",
+            attributes=["plan", "beta", "metro", "net_worth"],
         )
 
     ##################################################

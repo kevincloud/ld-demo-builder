@@ -330,7 +330,7 @@ class LDPlatform:
             + flag_key
         )
         headers = {
-            "Authorization": api_key,
+            "Authorization": self.api_key,
             "Content-Type": "application/json",
         }
         res = self.getrequest("GET", url, headers=headers)
@@ -344,7 +344,7 @@ class LDPlatform:
         ret_treatments = []
         treament_num = 1
         ret_treatments.append(
-            self.treatments("Treatment 1", True, 10, flag_key, treatments[0])
+            self.treatment("Treatment 1", True, 10, flag_key, treatments[0])
         )
 
         for t in treatments:

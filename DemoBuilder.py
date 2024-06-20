@@ -442,10 +442,10 @@ class DemoBuilder:
             "ai-to-advisor-conversion",
             "AI to Advisor Conversion",
             [
-                {"key": "ai-analyze-clicked", "nameInGroup": "AI Analyze Clicked"},
+                {"key": "ai-analyze-clicked", "nameInGroup": "Step 1"},
                 {
                     "key": "financial-advisor-contacted",
-                    "nameInGroup": "Financial Advisor Contacted",
+                    "nameInGroup": "Step 2",
                 },
             ],
         )

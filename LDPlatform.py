@@ -209,6 +209,52 @@ class LDPlatform:
             print("Error creating flag: " + data["message"])
         return response
 
+    def create_experiment(
+        self, exp_key, exp_name, flag_key, hypothesis, primary_funnel_key, attributes
+    ):
+        payload = {
+            "name": exp_name,
+            "key": exp_key,
+            "maintainerId": "5f9b3b7b7f7b7d001f7b7f7b",
+            "iteration": {
+                "hypothesis": hypothesis,
+                "canReshuffleTraffic": True,
+                "metrics": self.get_exp_metrics(),
+                "primaryFunnelKey": primary_funnel_key,
+                "treatments": self.get_treatments(flag_key),
+                "flags": {
+                    flag_key: {
+                        "ruleId": "fallthrough",
+                        "flagConfigVersion": 1,
+                    },
+                },
+                "randomizationUnit": "user",
+                "attributes": attributes,
+            },
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": self.api_key,
+            "LD-API-Version": "beta",
+        }
+
+        response = requests.post(
+            "https://app.launchdarkly.com/api/v2/projects/"
+            + self.project_key
+            + "/environments/production/experiments",
+            json=payload,
+            headers=headers,
+        )
+        data = json.loads(response.text)
+        if "message" in data:
+            print("Error creating flag: " + data["message"])
+        return response
+
+    #####################################
+    # Helper functions
+    #####################################
+
     def project_exists(self, project_key):
         res = self.getrequest(
             "GET",
@@ -261,3 +307,62 @@ class LDPlatform:
         if "message" in data:
             return False
         return True
+
+    def treatment(self, name, baseline, allocation_percent, flag_key, variation_id):
+        return {
+            "name": name,
+            "baseline": baseline,
+            "allocationPercent": allocation_percent,
+            "parameters": [
+                {
+                    "flagKey": flag_key,
+                    "variationId": variation_id,
+                },
+            ],
+        }
+
+    def get_flag(self, flag_key):
+        var_ids = []
+        url = (
+            "https://app.launchdarkly.com/api/v2/flags/"
+            + self.project_key
+            + "/"
+            + flag_key
+        )
+        headers = {
+            "Authorization": api_key,
+            "Content-Type": "application/json",
+        }
+        res = self.getrequest("GET", url, headers=headers)
+        data = json.loads(res.text)
+        for var in data["variations"]:
+            var_ids.append(var["_id"])
+        return var_ids
+
+    def get_treatments(self, flag_key):
+        treatments = self.get_flag(flag_key)
+        ret_treatments = []
+        treament_num = 1
+        ret_treatments.append(
+            self.treatments("Treatment 1", True, 10, flag_key, treatments[0])
+        )
+
+        for t in treatments:
+            treament_num += 1
+            ret_treatments.append(
+                self.treatment("Treatment " + str(treament_num), False, 30, flag_key, t)
+            )
+
+        return ret_treatments
+
+    def exp_metric(self, key, is_group=True):
+        return {
+            "key": key,
+            "isGroup": is_group,
+        }
+
+    def get_exp_metrics(self):
+        return [
+            self.exp_metric("ai-to-advisor-conversion"),
+            self.exp_metric("ai-csat"),
+        ]

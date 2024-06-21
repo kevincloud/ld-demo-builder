@@ -7,6 +7,7 @@ class LDPlatform:
     project_key = ""
     api_key = ""
     client_id = ""
+    sdk_key = ""
 
     def __init__(self, api_key):
         self.api_key = api_key
@@ -58,7 +59,9 @@ class LDPlatform:
         for e in data["environments"]:
             if e["key"] == "test":
                 self.client_id = e["_id"]
-                break
+            if e["key"] == "production":
+                self.sdk_key = e["apiKey"]
+
         if "message" in data:
             print("Error creating flag: " + data["message"])
         return response
@@ -210,8 +213,18 @@ class LDPlatform:
         return response
 
     def create_experiment(
-        self, exp_key, exp_name, flag_key, hypothesis, primary_funnel_key, attributes
+        self,
+        exp_key,
+        exp_name,
+        exp_env,
+        flag_key,
+        hypothesis,
+        primary_funnel_key,
+        attributes,
     ):
+        if self.experiment_exists(exp_key, exp_env):
+            return
+
         payload = {
             "name": exp_name,
             "key": exp_key,
@@ -225,7 +238,7 @@ class LDPlatform:
                 "flags": {
                     flag_key: {
                         "ruleId": "fallthrough",
-                        "flagConfigVersion": 1,
+                        "flagConfigVersion": 2,
                     },
                 },
                 "randomizationUnit": "user",
@@ -242,7 +255,9 @@ class LDPlatform:
         response = requests.post(
             "https://app.launchdarkly.com/api/v2/projects/"
             + self.project_key
-            + "/environments/production/experiments",
+            + "/environments/"
+            + exp_env
+            + "/experiments",
             json=payload,
             headers=headers,
         )
@@ -308,6 +323,22 @@ class LDPlatform:
             return False
         return True
 
+    def experiment_exists(self, exp_key, exp_env):
+        res = self.getrequest(
+            "GET",
+            "https://app.launchdarkly.com/api/v2/projects/"
+            + self.project_key
+            + "/environments/"
+            + exp_env
+            + "/experiments/"
+            + exp_key,
+            headers={"Authorization": self.api_key, "LD-API-Version": "beta"},
+        )
+        data = json.loads(res.text)
+        if "message" in data:
+            return False
+        return True
+
     def treatment(self, name, baseline, allocation_percent, flag_key, variation_id):
         return {
             "name": name,
@@ -366,3 +397,55 @@ class LDPlatform:
             self.exp_metric("ai-to-advisor-conversion"),
             self.exp_metric("ai-csat"),
         ]
+
+    def toggle_flag(self, flag_key, flag_state, flag_env, comment=None):
+        cmd = ""
+        if flag_state == "on":
+            cmd = "turnFlagOn"
+        else:
+            cmd = "turnFlagOff"
+
+        url = (
+            "https://app.launchdarkly.com/api/v2/flags/"
+            + self.project_key
+            + "/"
+            + flag_key
+        )
+        headers = {
+            "Authorization": self.api_key,
+            "Content-Type": "application/json; domain-model=launchdarkly.semanticpatch",
+        }
+        payload = {"environmentKey": flag_env, "instructions": [{"kind": cmd}]}
+        if comment is not None:
+            payload["comment"] = comment
+
+        res = self.getrequest("PATCH", url, headers=headers, json=payload)
+        return res
+
+    def start_exp_iteration(self, exp_key, exp_env):
+        url = (
+            "https://app.launchdarkly.com/api/v2/projects/"
+            + self.project_key
+            + "/environments/"
+            + exp_env
+            + "/experiments/"
+            + exp_key
+        )
+
+        headers = {
+            "Authorization": self.api_key,
+            "Content-Type": "application/json",
+            "LD-API-Version": "beta",
+        }
+        payload = {
+            "instructions": [
+                {
+                    "kind": "startIteration",
+                    "changeJustification": "Time to start the experiment!",
+                }
+            ]
+        }
+
+        res = self.getrequest("PATCH", url, headers=headers, json=payload)
+        print(res.text)
+        return res

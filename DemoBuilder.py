@@ -1,3 +1,4 @@
+import requests
 import LDPlatform
 
 
@@ -112,13 +113,27 @@ class DemoBuilder:
         print("Done")
         self.metric_groups_created = True
 
-    def create_experiments(self):
+    # def create_experiments(self):
+    #     if not self.metric_groups_created:
+    #         print("Error: Metric groups not created")
+    #         return
+    #     print("Creating experiment:")
+    #     print("  - AI Analysis to Advisor")
+    #     self.exp_ai_analysis_to_advisor()
+    #     print("Done")
+    #     self.experiment_created = True
+
+    def run_experiment(self):
         if not self.metric_groups_created:
             print("Error: Metric groups not created")
             return
         print("Creating experiment:")
+        self.ldproject.toggle_flag(
+            "config-ai-model", "on", "production", "Turn on flag for experiment"
+        )
         print("  - AI Analysis to Advisor")
         self.exp_ai_analysis_to_advisor()
+        self.ldproject.start_exp_iteration("ai-analysis-to-advisor", "production")
         print("Done")
         self.experiment_created = True
 
@@ -498,6 +513,7 @@ class DemoBuilder:
         res = self.ldproject.create_experiment(
             "ai-analysis-to-advisor",
             "AI Analysis to Advisor",
+            "production",
             "config-ai-model",
             "We believe that by using more up to date AI models, we will increase customer conversions to contact their advisor.",
             primary_funnel_key="ai-to-advisor-conversion",
